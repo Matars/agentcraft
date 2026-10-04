@@ -62,7 +62,9 @@ chat reply with zero goals and tasks. These are functional checks, not an FPS be
 
 ## Evidence limits and release status
 
-The gallery contains real framebuffer captures with separate HTML annotation markers. Screenshots
+The gallery contains real framebuffer captures with separate HTML annotation markers. Browser-rendered
+JPEG exports in `docs/img/contribution/annotated/` include those markers and their legends for PR
+embedding; the original PNG captures remain unchanged. Screenshots
 show rendered state; the accompanying test/readback notes establish behavior. Mouse-handler and
 widget regressions pass, but native automation could not move Minecraft's SDL pointer reliably.
 They must not be described as physical mouse-click verification. See [the mouse regression
