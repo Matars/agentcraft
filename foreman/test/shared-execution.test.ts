@@ -73,6 +73,56 @@ describe('one shared orchestration authority', () => {
   const team: Record<ExecutionRole,RoleSelection> = {lead:{provider:'codex',model:'astra',effort:'medium'},
     worker:{provider:'claude',model:'sonnet',effort:'high'},reviewer:{provider:'claude',model:'sonnet',effort:'default'}};
 
+  it('keeps Codex work and chat running while a Claude reviewer waits, then resumes review after recovery', async () => {
+    const roles = {lead:{provider:'codex' as const,model:'astra',effort:'medium'},worker:{provider:'codex' as const,model:'sol',effort:'high'},reviewer:{provider:'claude' as const,model:'sonnet',effort:'high'}};
+    const f = fixture({roles}, async context => {
+      if (context.entry.job.kind === 'plan') await tool(f.h,context,'create_task',{title:'Independent providers',description:'fixture',assignee:'kit'});
+      if (context.entry.job.kind === 'work') {
+        await tool(f.h,context,'update_task',{task_id:'t1',status:'review',summary:'done'});
+        context.hooks.onReview('kit','t1');
+      }
+      if (context.entry.job.kind === 'review') await tool(f.h,context,'request_merge',{task_id:'t1',summary:'reviewed'});
+    });
+    f.capabilities.mockImplementation(async provider => ({available:provider === 'codex',models:catalog[provider]}));
+    await f.h.fm.start(f.backend);
+    expect(f.h.fm.status.auth).toBe('ok');
+    expect(f.h.fm.status.message).toContain('Unavailable: claude');
+    await f.h.fm.submitGoal('Independent providers','fixture');
+    await until(() => f.h.fm.tasks.list().some(t => t.status === 'review') && f.ci.mock.calls.length === 1,2000);
+    f.backend.onUserMessage('marlow','What is waiting?');
+    await until(() => f.calls.some(c => c.entry.job.kind === 'followup'),1000);
+    expect(f.calls.every(c => c.selection.provider === 'codex')).toBe(true);
+    expect(f.h.fm.decisions.open().filter(d => d.kind === 'merge')).toHaveLength(0);
+    f.capabilities.mockImplementation(async provider => ({available:true,models:catalog[provider]}));
+    await f.backend.configureTeam(roles);
+    await until(() => f.h.fm.decisions.open().some(d => d.kind === 'merge'),2000);
+    expect(f.calls.filter(c => c.entry.job.kind === 'review')).toHaveLength(1);
+    expect(f.calls.find(c => c.entry.job.kind === 'review')!.selection.provider).toBe('claude');
+    expect(f.merge).not.toHaveBeenCalled();
+  });
+
+  it('does not let an unavailable off-team override block the active team', async () => {
+    const f = fixture();
+    await f.backend.configureAgent('tove','sonnet','high','claude');
+    f.capabilities.mockImplementation(async provider => ({available:provider === 'codex',models:catalog[provider]}));
+    await f.h.fm.start(f.backend);
+    f.backend.onUserMessage('marlow','Hello');
+    await until(() => f.calls.length === 1,1000);
+    expect(f.h.fm.status.auth).toBe('ok');
+    expect(f.calls[0]!.selection.provider).toBe('codex');
+  });
+
+  it('does not classify a token-limit error as lost authentication', async () => {
+    let turns = 0;
+    const f = fixture(undefined,async () => {if (++turns === 1) throw new Error('Maximum token limit exceeded');});
+    await f.h.fm.start(f.backend);
+    f.backend.onUserMessage('marlow','First attempt');
+    await until(() => f.calls.length === 1 && !(f.h.fm.store.data.backend.execution as ExecutionState).inflight.marlow,1000);
+    f.backend.onUserMessage('marlow','A shorter question');
+    await until(() => f.calls.length === 2,1000);
+    expect(f.h.fm.status.auth).toBe('ok');
+  });
+
   it.each(['done', 'failed', 'cancelled'] as const)('keeps chat separate from a %s goal', async status => {
     const f = fixture();
     f.h.fm.store.data.goals.push({id:'g1',text:'Previous work',status,progress:1,repoId:'fixture',createdAt:1,updatedAt:1});
@@ -228,6 +278,7 @@ describe('one shared orchestration authority', () => {
     expect(f.ci).toHaveBeenCalledTimes(1);
     expect(f.h.fm.decisions.open().filter(d => d.kind === 'merge')).toHaveLength(1);
     expect(f.merge).not.toHaveBeenCalled();
+    expect(f.h.fm.store.logTail('marlow').some(log => log.text.includes('Provider changed'))).toBe(false);
     expect(f.h.fm.tasks.require('t1').status).toBe('review');
     expect(Object.keys(f.h.fm.store.data.sessions).every(key => /^(codex|claude):/.test(key))).toBe(true);
   });

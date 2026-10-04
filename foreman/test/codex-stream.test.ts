@@ -75,3 +75,14 @@ it('bounds pending response count and text while retaining final authoritative c
   mapper.handle('turn/completed',{turn:{status:'completed'}});
   expect(pending.size).toBe(0);
 });
+
+
+it('preserves a completed response beyond the interrupted-stream prefix limit', () => {
+  const {mapper,agentLog}=fixture();
+  const response = 'Plan details. '.repeat(120) + 'Final verdict: changes requested.';
+  mapper.handle('item/agentMessage/delta',{itemId:'long',delta:response});
+  mapper.handle('item/completed',{item:{id:'long',type:'agentMessage',text:response}});
+  expect(response.length).toBeGreaterThan(1200);
+  expect(response.length).toBeLessThan(2000);
+  expect(agentLog.mock.lastCall?.[2]).toBe(response);
+});

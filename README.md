@@ -370,7 +370,7 @@ not affiliated with Mojang, Microsoft or Anthropic.
 ## Team harness, model and reasoning setup
 
 Launch with `--backend codex` to use Codex as the initial harness. Install and authenticate the
-standalone CLIs on the Foreman host for the providers you want to use. On the first unconfigured
+provider CLIs on the Foreman host (Claude can also use its SDK bundled executable). Claude API authentication remains the default; `--use-claude-login` explicitly selects a personal subscription login. On the first unconfigured
 owner connection, **Team setup** detects their availability and model catalogs. Choose **All
 Codex**, **All Claude**, or **Mixed team**, then **Choose…** for each lead, worker and reviewer
 role to select its provider, model and supported reasoning level. Catalogs depend on your local

@@ -88,7 +88,9 @@ export class CodexStreamMapper {
 
   private flushMessage(id: string, completedText?: string): void {
     const body = (completedText || this.agentMessages.get(id) || '').trim();
-    if (body) this.fm.agentLog(this.agentId, 'text', truncate(body, RESPONSE_LOG_CHARS));
+    // Completed responses use Foreman's normal log limit; the smaller prefix is
+    // only for interrupted streams that never supplied an authoritative item.
+    if (body) this.fm.agentLog(this.agentId, 'text', completedText ? body : truncate(body, RESPONSE_LOG_CHARS));
     this.agentMessages.delete(id);
   }
 

@@ -22,10 +22,11 @@ describe('runtime follows discovered capabilities', () => {
     const backend = new CodexBackend(h!.fm,h!.cfg.codex,{skipAuthCheck:true});
     await expect(backend.agentModels('marlow','claude')).rejects.toThrow('unavailable');
   });
-  it.each(['login','api'] as const)('uses the discovered Claude executable/auth (%s) and omits the default effort sentinel', async auth => {
+  it.each(['login','api'] as const)('uses the discovered Claude executable and configured auth (%s) and omits the default effort sentinel', async auth => {
     vi.stubEnv('CLAUDE_CODE_OAUTH_TOKEN','fixture-token');
     const c = context('claude',{available:true,models:[],binaryPath:'/fixture/standalone/claude',auth});
-    h!.cfg.claude.useClaudeLogin = auth !== 'login'; // capability must override the legacy setting
+    h!.cfg.claude.useClaudeLogin = auth === 'login';
+    c.capabilities!.auth = auth === 'login' ? 'api' : 'login'; // Discovery cannot override host consent.
     const calls: Options[] = [];
     const queryFn = vi.fn(({options}: {options:Options}) => {
       calls.push(options);
@@ -46,6 +47,7 @@ describe('runtime follows discovered capabilities', () => {
 
   it('passes the discovered Claude executable and login mode through its auth probe', async () => {
     const c = context('claude',{available:true,models:[],binaryPath:'/fixture/standalone/claude',auth:'login'});
+    h!.cfg.claude.useClaudeLogin = true;
     const close = vi.fn();
     const queryFn = vi.fn(() => ({accountInfo:async()=>({tokenSource:'login'}),close}));
     const adapter = new ClaudeAdapter(h!.fm,h!.cfg.claude,{queryFn:queryFn as never});

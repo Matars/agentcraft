@@ -1,7 +1,10 @@
 # Set up a Codex, Claude or mixed team
 
-Install and authenticate the standalone CLIs you want to use on the **Foreman host**. Minecraft
-clients do not need access to CLI credentials. Model catalogs depend on the installed CLI and
+Install and authenticate the providers you want to use on the **Foreman host**. Codex uses its
+standalone CLI. Claude prefers an installed Claude Code CLI and can use the Agent SDK bundled
+executable when no global CLI is present. Minecraft clients do not need access to CLI credentials.
+Claude defaults to API authentication; using an existing personal subscription login requires
+the host to launch Foreman with `--use-claude-login`. Discovery never enables this flag silently. Model catalogs depend on the installed CLI and
 account; the names in screenshots are examples, not a fixed list of supported models.
 
 ## First setup
@@ -20,7 +23,9 @@ team rechecks execution readiness and resumes queued work when available.
 
 One shared runner schedules every role, runs CI, and opens permission and merge decisions for the
 owner. Choosing a Claude reviewer does not start another scheduler or authorize automatic merges.
-Sessions are stored separately for Codex and Claude.
+Sessions are stored separately for Codex and Claude. An unavailable provider holds only its own
+jobs; healthy providers can continue. Saving corrected settings rechecks availability and resumes
+waiting jobs. Review and merge requirements still apply.
 
 ## Change one agent
 
@@ -39,8 +44,8 @@ focus when controls refresh; Tab from Reasoning reaches the confirmation button.
 
 ## Verified behavior
 
-On 2026-10-04, the integrated source passed 625 Foreman tests, TypeScript typechecking and generated
-protocol consistency, plus the Java build and 48 JVM tests. Relevant tests cover atomic role saves,
+On 2026-10-04, the integrated source passed 631 Foreman tests, TypeScript typechecking and generated
+protocol consistency, plus the Java build and 50 JVM tests. Relevant tests cover atomic role saves,
 provider-isolated sessions, migration, preserved overrides, explicit reset, unavailable-provider
 recovery, retry, and setup discovery across reconnects. Old connection replies, owner-denied
 requests, already-configured teams and simulation connections do not open an unwanted setup screen.

@@ -15,7 +15,9 @@ through one shared scheduler.
   reset. Running turns keep their selections; later turns use saved choices.
 - **Provider isolation and recovery.** Sessions are separated by provider. Interrupted jobs retain
   their provider and job kind. A valid setup change can recover execution after the startup
-  provider was unavailable. Team status describes the saved roles.
+  provider was unavailable. Provider failures hold their own jobs while healthy providers continue.
+  Team status describes the saved roles. Claude subscription login retains its explicit host opt-in,
+  and existing API users can still use the SDK bundled executable.
 - **Dedicated multiplayer.** The host runs Foreman beside the server. A modded coding owner uses
   the studio while ordinary Java guests can join without installing AgentCraft. Polymer projects
   studio content into vanilla equivalents. Coding, repository, permission and merge actions are
@@ -40,8 +42,8 @@ See [team setup](qa/team-setup.md), [console commands](console.md), the
 
 ## Validation
 
-The local source checkpoint on 2026-10-04 passed 625 Foreman tests, TypeScript typechecking and
-protocol-document consistency, plus the Java build and 48 JVM tests. Tool tests passed 18/18 and
+The local source checkpoint on 2026-10-04 passed 631 Foreman tests, TypeScript typechecking and
+protocol-document consistency, plus the Java build and 50 JVM tests. Tool tests passed 18/18 and
 the Python packaging regression passed. Later source changes require their own checks.
 
 ```sh

@@ -32,7 +32,7 @@ export class SharedRunner implements Backend {
   private running = new Map<string, Running>();
   private pausedJobs = new Map<string, Job>();
   private tickTimer: NodeJS.Timeout | undefined;
-  private authFailed = false;
+  private readonly failedProviders = new Map<ExecutionProvider, string>();
   private stopping = false;
   private waitingUser = new Set<string>();
   private hooks: ToolHooks;
@@ -151,21 +151,30 @@ export class SharedRunner implements Backend {
   }
 
   async checkAuth(): Promise<boolean> {
-    this.authFailed = true;
-    const providers = [...(['lead','worker','reviewer'] as const).map(role => this.roleSelection(role).provider),
-      ...Object.values(this.st.agentProviders ?? {}), ...Object.values(this.st.inflight).flatMap(inf => inf.selection ? [inf.selection.provider] : [])];
-    for (const provider of new Set(providers)) {
-      const capability = this.options.capabilities ? await this.options.capabilities(provider) : undefined;
-      const adapter = this.options.adapters[provider];
-      if (!adapter || (capability && !capability.available)) {
-        this.markAuthFailed(capability?.reason ?? `${provider} is unavailable`);
-        return false;
+    const providers = new Set<ExecutionProvider>([
+      ...(['lead','worker','reviewer'] as const).map(role => this.roleSelection(role).provider),
+      ...Object.entries(this.st.agentProviders ?? {}).filter(([id]) => this.fm.agent(id)?.active).map(([,provider]) => provider),
+      ...Object.values(this.st.inflight).flatMap(inf => inf.selection ? [inf.selection.provider] : []),
+    ]);
+    for (const provider of this.failedProviders.keys()) if (!providers.has(provider)) this.failedProviders.delete(provider);
+    for (const provider of providers) {
+      this.failedProviders.set(provider, 'Checking authentication');
+      try {
+        const capability = this.options.capabilities ? await this.options.capabilities(provider) : undefined;
+        const adapter = this.options.adapters[provider];
+        if (!adapter || (capability && !capability.available)) {
+          this.markAuthFailed(capability?.reason ?? `${provider} is unavailable`, provider);
+        } else if (!await adapter.checkAuth(capability)) {
+          this.markAuthFailed(this.fm.status.message ?? `${provider} authentication failed`, provider);
+        } else {
+          this.failedProviders.delete(provider);
+        }
+      } catch (error) {
+        this.markAuthFailed(`${provider} authentication check failed`, provider);
       }
-      if (!await adapter.checkAuth(capability)) { this.authFailed = true; return false; }
     }
-    this.authFailed = false;
     this.publishTeamStatus();
-    return true;
+    return this.failedProviders.size === 0;
   }
 
   private publishTeamStatus(): void {
@@ -174,28 +183,21 @@ export class SharedRunner implements Backend {
       const selection = roles[role];
       return `${role}: ${[selection.provider, selection.model, selection.effort].filter(Boolean).join(' / ')}`;
     }).join(' · ');
-    this.fm.setStatus({ auth: 'ok', message: `Team roles · ${message}` });
+    const unavailable = [...this.failedProviders].map(([provider, reason]) => `${provider}: ${reason}`).join('; ');
+    this.fm.setStatus({ auth: this.failedProviders.has(this.selectionFor(LEAD, 'lead').provider) ? 'failed' : 'ok',
+      message: `Team roles · ${message}${unavailable ? ` · Unavailable: ${unavailable}` : ''}` });
   }
 
   private async settingsChanged(): Promise<void> {
-    // Discovery already validated the new selection. A failed startup also leaves
-    // the scheduler gated, which must be rechecked when setup repairs that choice.
-    if (this.authFailed) {
-      try {
-        if (await this.checkAuth()) this.tick();
-      } catch (error) {
-        // The settings are saved; a runtime probe failure must not report that
-        // they were rolled back. Foreman status exposes the remaining problem.
-        this.markAuthFailed(`Execution check failed: ${(error as Error).message}`);
-      }
-    } else {
-      this.publishTeamStatus();
-    }
+    if (this.failedProviders.size) await this.checkAuth();
+    else this.publishTeamStatus();
+    // Some providers may have recovered even if another still needs attention.
+    this.tick();
   }
 
-  private markAuthFailed(message: string): void {
-    this.authFailed = true;
-    this.fm.setStatus({ auth: 'failed', message });
+  private markAuthFailed(message: string, provider: ExecutionProvider): void {
+    this.failedProviders.set(provider, message);
+    this.publishTeamStatus();
     this.fm.log.error(message);
     this.fm.bus.feed('error', message);
     this.fm.notify('warn', message);
@@ -389,7 +391,7 @@ export class SharedRunner implements Backend {
   // ---- goals & scheduling -------------------------------------------------------------------
 
   async submitGoal(goal: Goal): Promise<void> {
-    if (this.authFailed) {
+    if (this.failedProviders.has(this.selectionFor(LEAD, 'lead').provider)) {
       this.fm.setGoal(goal.id, { status: 'failed' });
       throw new ClientError(`Execution is not available: ${this.fm.status.message ?? 'auth failed'}`);
     }
@@ -430,6 +432,7 @@ export class SharedRunner implements Backend {
   private isFree(w: string): boolean {
     const a = this.fm.agent(w);
     if (!a || !a.active || a.paused || this.isStopped(w) || !this.team.includes(w)) return false;
+    if (this.failedProviders.has(this.selectionFor(w, 'worker').provider)) return false;
     if (this.running.has(w) || (this.queues.get(w)?.length ?? 0) > 0) return false;
     return !this.fm.tasks.list().some((t) => t.assignee === w && t.status === 'doing');
   }
@@ -442,7 +445,7 @@ export class SharedRunner implements Backend {
   }
 
   private async dispatchReady(): Promise<void> {
-    if (this.authFailed || this.stopping) return;
+    if (this.stopping) return;
     for (const goal of this.fm.goals().filter((g) => g.status === 'active')) {
       for (const t of this.fm.tasks.ready(goal.id)) {
         if (this.workersRunning() >= this.cfg.maxConcurrent) return;
@@ -508,15 +511,18 @@ export class SharedRunner implements Backend {
   }
 
   private pump(agentId: string): void {
-    if (this.stopping || this.authFailed) return;
+    if (this.stopping) return;
     if (this.running.has(agentId)) return;
     const a = this.fm.agent(agentId);
     if (!a || a.paused || !a.active || this.isStopped(agentId)) return;
     const q = this.queues.get(agentId);
     if (!q?.length) return;
     if (agentId !== LEAD && this.workersRunning() >= this.cfg.maxConcurrent) return;
-    const job = q.shift()!;
-    const p = this.runJob(job).finally(() => {
+    const index = q.findIndex(job => !this.failedProviders.has((job.selection ?? this.selectionFor(job.agentId,
+      job.role ?? (job.kind === 'review' ? 'reviewer' : job.agentId === LEAD ? 'lead' : 'worker'))).provider));
+    if (index < 0) return;
+    const [job] = q.splice(index, 1);
+    const p = this.runJob(job!).finally(() => {
       this.turnPromises.delete(p);
     });
     this.turnPromises.add(p);
@@ -793,12 +799,13 @@ export class SharedRunner implements Backend {
       if (!this.options.legacySessions) delete sessions[logical];
       this.fm.store.markDirty();
     }
-    const other = `${selection.provider === 'codex' ? 'claude' : 'codex'}:${logical}`;
-    const previousProvider = this.st.sessionProviders?.[logical];
-    if ((previousProvider && previousProvider !== selection.provider) || (!previousProvider && sessions[other]?.sessionId)) {
+    const role = job.role ?? (job.kind === 'review' ? 'reviewer' : job.agentId === LEAD ? 'lead' : 'worker');
+    const trackingKey = `${role}:${logical}`;
+    const previousProvider = this.st.sessionProviders?.[trackingKey];
+    if (previousProvider && previousProvider !== selection.provider) {
       this.fm.agentLog(job.agentId, 'text', `Provider changed to ${selection.provider}; ${sessions[key]?.sessionId ? 'resuming its saved session' : 'starting a separate session'}. The other provider's session is preserved.`);
     }
-    (this.st.sessionProviders ??= {})[logical] = selection.provider;
+    (this.st.sessionProviders ??= {})[trackingKey] = selection.provider;
     return key;
   }
 
@@ -850,16 +857,16 @@ export class SharedRunner implements Backend {
         recordSession: (id, model, result) => this.recordSession(job.sessionKey, id, model, result),
         permissionGranted: (tool, input, reason, mcpServer, signal) => this.permissionGranted(agentId, policyRole, cwd, turn, tool, input, reason, mcpServer, signal),
         askUser: (question, choices) => this.askUser(agentId, question, choices, turn),
-        markAuthFailed: message => this.markAuthFailed(message)});
+        markAuthFailed: message => this.markAuthFailed(message, selection.provider)});
       if (stats.sessionId) this.recordSession(job.sessionKey, stats.sessionId, stats.model ?? selection.model, stats);
     } catch (e) {
       if (!abort.signal.aborted) {
         const raw = (e as Error).message ?? String(e);
-        const auth = /auth|login|credential|token|401|api key/i.test(raw);
+        const auth = /\bauth\b|authentication|login|credential|(?:access|refresh|auth) token|\b401\b|api key/i.test(raw);
         const message = auth ? `${job.selection!.provider} session failed; check the local sign-in.` : truncate(raw, 400);
         this.fm.log.error(`${agentId} ${job.kind} failed: ${message}`);
         this.fm.agentLog(agentId, 'error', `session error: ${message}`);
-        if (auth) this.markAuthFailed(message);
+        if (auth) this.markAuthFailed(message, job.selection!.provider);
         stats = {isError: true, errors: [message]};
       }
     } finally {

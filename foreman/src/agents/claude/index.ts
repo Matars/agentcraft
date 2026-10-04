@@ -46,12 +46,12 @@ export class ClaudeAdapter implements ExecutionAdapter {
   constructor(private fm: Foreman, private cfg: ClaudeConfig, private opts: ClaudeBackendOptions = {}) { this.queryFn = opts.queryFn ?? query; }
   async checkAuth(capabilities?: ProviderCapabilities): Promise<boolean> {
     if (this.opts.skipAuthCheck) {
-      this.fm.setStatus({ auth: 'ok', message: `Claude (lead ${this.cfg.leadModel}, workers ${this.cfg.workerModel})` });
+      this.fm.setStatus({ auth: 'ok', message: 'Claude authentication ready' });
       return true;
     }
     // API authentication by default; the claude.ai login only when explicitly opted into
     const api = detectApiAuth(process.env);
-    const useClaudeLogin = capabilities?.auth ? capabilities.auth === 'login' : this.cfg.useClaudeLogin;
+    const useClaudeLogin = this.cfg.useClaudeLogin;
     if (!useClaudeLogin && !api.ok) {
       this.markAuthFailed(NO_API_AUTH_MESSAGE);
       return false;
@@ -70,7 +70,7 @@ export class ClaudeAdapter implements ExecutionAdapter {
       const account = useClaudeLogin
         ? [info.organization, info.subscriptionType].filter(Boolean).join(' · ') || info.apiProvider || 'ok'
         : [api.ok ? api.source : 'API', info.organization].filter(Boolean).join(' · ');
-      this.fm.setStatus({ auth: 'ok', account, message: `Claude (lead ${this.cfg.leadModel}, workers ${this.cfg.workerModel})` });
+      this.fm.setStatus({ auth: 'ok', account, message: 'Claude authentication ready' });
       this.fm.log.info(`claude auth ok (${account})`);
       return true;
     } catch (e) {
@@ -125,7 +125,7 @@ export class ClaudeAdapter implements ExecutionAdapter {
       mcpServers: { [MCP_SERVER]: buildMcpServer(this.fm, agentId, role, context.hooks, turn) },
       systemPrompt: { type: 'preset', preset: 'claude_code', append: systemAppend },
       abortController: abort,
-      env: this.env({ agentId, cwd }, context.capabilities?.auth ? context.capabilities.auth === 'login' : this.cfg.useClaudeLogin),
+      env: this.env({ agentId, cwd }, this.cfg.useClaudeLogin),
       ...(context.capabilities?.binaryPath ? {pathToClaudeCodeExecutable: context.capabilities.binaryPath} : {}),
       // we spawn the CLI ourselves (same as the SDK's local spawn) so its pid is known: a stopped
       // turn's whole process tree can then be ended before its worktree is handed on
