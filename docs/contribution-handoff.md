@@ -55,7 +55,8 @@ python3 -m unittest tools/test_package_multiplayer.py
 
 A disposable real-CLI fixture ran a Codex worker that edited and committed a file, passed its
 project tests, and received a Claude review leading to an open owner merge decision. The base
-branch stayed unchanged. In-game setup selections survived readback and a Foreman restart.
+branch stayed unchanged until explicit approval; Foreman then merged only the intended file and
+its tests passed on the base branch. In-game setup selections survived readback and a Foreman restart.
 Native keyboard checks also verified both provider catalogs, slash-menu scrolling and a plain
 chat reply with zero goals and tasks. These are functional checks, not an FPS benchmark.
 
@@ -67,10 +68,14 @@ widget regressions pass, but native automation could not move Minecraft's SDL po
 They must not be described as physical mouse-click verification. See [the mouse regression
 notes](qa/agent-card-mouse.md).
 
-Windows launcher behavior has fixture coverage, not a physical Windows qualification. Additional
-multiplayer, failure/recovery and final-build release captures remain to be integrated. Final live
-qualification and the clean upstream source export are still pending; this document does not claim
-that the complete contribution has been published or deployed.
+Windows launcher behavior has fixture coverage, not a physical Windows qualification.
+
+The qualified mod and runtime were installed in the original multiplayer world after a graceful
+save and verified backup. Both players' saved data, advancements and stats matched their pre-update
+files; saved agent model choices and shader files were preserved. The coding owner rejoined at
+the same position and the shader view rendered cleanly. A second authenticated human guest was
+not present for this final deployment; vanilla compatibility was checked separately on loopback.
+The publishing branch uses a clean source export and excludes local runtime history.
 
 
 The disposable real-CLI review was subsequently approved through Foreman: only `greeting.mjs`

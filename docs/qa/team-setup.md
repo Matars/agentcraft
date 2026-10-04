@@ -57,7 +57,8 @@ The survival studio's preferences were not changed.
 
 A separate disposable real-CLI fixture ran a Codex worker that edited and committed one file,
 passed its project tests, and received a Claude review leading to an open owner merge decision.
-The base branch remained unchanged. This verifies one real mixed-provider workflow, not every
+The base branch remained unchanged until explicit approval; the approved merge then passed its
+tests. This verifies one real mixed-provider workflow, not every
 provider/model/account combination.
 
 The actual client also opened both per-agent catalogs, kept the eighth slash-completion selection
@@ -72,8 +73,10 @@ rendered state; the checks described above establish the input and persistence b
 
 Mouse-handler and widget tests pass, but native automation could not reliably move Minecraft's
 internal SDL pointer. These are not physical mouse-click verification; see [the mouse regression
-notes](agent-card-mouse.md). Final integrated release qualification and the remaining multiplayer
-and failure-path captures are separate gates before publication.
+notes](agent-card-mouse.md). The final build was also deployed to the original multiplayer world after a verified save and
+backup. Existing per-agent model settings and shader files were preserved. The first-run setup
+prompt was inspected and dismissed without saving any draft choices. See the contribution notes
+for the distinction between this authenticated owner check and the loopback vanilla guest check.
 
 
 The disposable real-CLI review was subsequently approved through Foreman: only `greeting.mjs`
