@@ -4,9 +4,9 @@
 
 **A team of coding agents doing real work on your code, inside a Minecraft studio you can walk around in.
 
-This fork adds a Codex app-server backend and authenticated dedicated-server multiplayer. The upstream Claude and single-player workflows remain available.**
+This fork adds a local Codex backend, mixed Codex/Claude teams and authenticated dedicated-server multiplayer. Single-harness teams and single-player workflows remain available.**
 
-*Powered by Claude*
+*Powered by local Codex and Claude Code*
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-c9a227)](LICENSE)
 [![Minecraft 26.3](https://img.shields.io/badge/Minecraft-26.3-8fa98b)](https://www.minecraft.net)
@@ -22,7 +22,7 @@ This fork adds a Codex app-server backend and authenticated dedicated-server mul
 
 Multi-agent coding usually means a wall of terminal text. AgentCraft turns it into a place.
 
-You type a goal. A lead agent reads your repo, writes a plan and pins tasks to a wall. Workers walk to
+You submit `/goal <text>`. A lead agent reads your repo, writes a plan and pins tasks to a wall. Workers walk to
 their desks, sit down and start coding in their own git worktrees while their monitors stream every
 file they read and every line they change. When a call is genuinely yours, an agent walks over to
 you with a question. When work is ready, you review the real diff and press **Merge**. Nothing
@@ -38,7 +38,7 @@ Close the game and the agents keep working. Open it again and the studio catches
 <tr>
 <td width="50%" valign="top">
 
-**1. You give a goal.** Press <kbd>`</kbd> and type it. `@juniper` messages a specific agent, with
+**1. You give a goal.** Press <kbd>`</kbd> and type `/goal Add OAuth to life-tracker`. Plain text talks to Marlow and can steer an active goal. `@juniper` messages a specific agent, with
 Tab completion.
 
 <img src="docs/img/readme/console.jpg" alt="The command console with agent autocomplete">
@@ -236,10 +236,11 @@ the first time; in an older world, rebuild it with `/agentcraft hq`.
 
 All keys can be rebound in Options, Controls.
 
-**Console commands.** Plain text starts a new goal. `@name message` talks to an agent.
+**Console commands.** Plain text talks to Marlow. `/goal <text>` explicitly starts work; with several repositories, choose the target before submitting. `@name message` and `@all message` keep their existing routing. Messages can also steer an active goal.
 
 | Command | |
 |---|---|
+| `/goal <text>` | Start a new goal for Marlow |
 | `/answer [d4] <n or option> [text]` | Answer an open decision |
 | `/diff [worktree or @agent]` | Review a worktree's changes |
 | `/status` | Goal, agents, tasks, decisions and spend |
@@ -259,7 +260,7 @@ flowchart LR
         UI["Console, decisions,<br/>diff review, library"]
     end
     subgraph foreman ["Foreman (Node + TypeScript)"]
-        Team["Lead + workers<br/>(Claude Agent SDK)"]
+        Team["One shared runner<br/>Codex / Claude roles"]
         State["Task graph, messages,<br/>memory, decisions"]
         Git["Worktrees, diffs,<br/>approved merges"]
     end
@@ -270,7 +271,7 @@ flowchart LR
 
 - **The Foreman** (`foreman/`) runs the agents and owns all the state: tasks and their
   dependencies, messages, shared memory, decisions and worktrees. Everything is saved to disk and
-  Claude sessions resume by id, so it survives restarts and crashes.
+  Provider sessions are saved separately and interrupted jobs retain their provider and job kind on restart.
 - **The mod** (`mod/`) is the window and the controls. It draws what the Foreman knows and sends
   back what you decide. If the game closes, no work is lost.
 - **The sim backend** is a scripted team that exercises every feature with real git edits. It powers
@@ -365,6 +366,26 @@ not affiliated with Mojang, Microsoft or Anthropic.
 <sub>Built with Claude.</sub>
 </div>
 
+
+## Team harness, model and reasoning setup
+
+Launch with `--backend codex` to use Codex as the initial harness. Install and authenticate the
+standalone CLIs on the Foreman host for the providers you want to use. On the first unconfigured
+owner connection, **Team setup** detects their availability and model catalogs. Choose **All
+Codex**, **All Claude**, or **Mixed team**, then **Choose…** for each lead, worker and reviewer
+role to select its provider, model and supported reasoning level. Catalogs depend on your local
+CLI and account; the gallery's model names are examples.
+
+Presets and role-picker selections are drafts until **Save team** validates all three roles.
+Current turns continue; saved choices apply to new turns. Individual agent overrides are kept
+unless you explicitly select their reset. An agent card's **Model** screen lets you preview
+Codex/Claude, apply a per-agent choice or restore **Role defaults**, and reopen **Team setup**.
+Unavailable providers show an error rather than silently switching harnesses.
+
+One Foreman and shared runner schedule both providers, run CI and open permission/merge decisions
+for the owner. A Claude reviewer does not start a second scheduler or approve its own merge.
+See [setup instructions and qualification limits](docs/qa/team-setup.md) and the
+[annotated setup gallery](docs/contribution-gallery.html).
 
 ## Codex and dedicated-server multiplayer
 

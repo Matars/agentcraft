@@ -116,6 +116,7 @@ public final class ForemanLink {
 	}
 
 	public synchronized void stop() {
+		snapshots.clear();
 		running = false;
 		if (relaySender != null) {
 			failPending("Minecraft connection closed");
@@ -203,7 +204,7 @@ public final class ForemanLink {
 					lastInbound = System.currentTimeMillis();
 					lastPing = lastInbound;
 					publish(status.with(Phase.HANDSHAKE, null, 0));
-					JsonObject hello = ForemanJson.msg("hello").put("modVersion", modVersion).put("protocol", Protocol.VERSION).put("client", "mod").json();
+					JsonObject hello = ForemanJson.msg("hello").put("modVersion", modVersion).put("protocol", Protocol.VERSION).put("client", "mod").put("snapshotParts", true).json();
 					sendRaw(socket, hello.toString());
 				});
 		} catch (Throwable t) {
@@ -217,6 +218,7 @@ public final class ForemanLink {
 			return; // a stale socket's late callback
 		}
 		generation.incrementAndGet();
+		snapshots.clear();
 		WebSocket s = ws;
 		ws = null;
 		if (s != null) {
@@ -344,6 +346,8 @@ public final class ForemanLink {
 		}
 	}
 
+	private final dev.agentcraft.network.SnapshotTransfer snapshots = new dev.agentcraft.network.SnapshotTransfer();
+
 	private void handle(String text) {
 		lastInbound = System.currentTimeMillis();
 		messages++;
@@ -353,7 +357,8 @@ public final class ForemanLink {
 			if (!el.isJsonObject()) {
 				return;
 			}
-			json = el.getAsJsonObject();
+			json = snapshots.accept(el.getAsJsonObject());
+			if (json == null) return;
 		} catch (Exception e) {
 			AgentCraft.LOGGER.warn("Foreman sent invalid JSON ({} chars)", text.length());
 			return;

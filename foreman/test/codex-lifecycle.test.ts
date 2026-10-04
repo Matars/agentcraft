@@ -140,6 +140,28 @@ describe('Codex app-server transport lifecycle', () => {
 });
 
 describe('Codex backend lifecycle through fake stdio', () => {
+  it('keeps the active model while applying an in-game choice to the next turn', async () => {
+    fake();
+    const { h, backend } = worker();
+    vi.spyOn(backend as unknown as { availableModels(): Promise<import('../src/agents/codex/model-settings.js').ModelChoice[]> }, 'availableModels')
+      .mockResolvedValue([{ model: 'sol', label: 'Sol', efforts: ['high'], defaultEffort: 'high' }]);
+    backend.onUserMessage('kit', 'Continue');
+    await until(() => child.messages.some(m => m.method === 'turn/start'));
+    const original = child;
+    const result = await backend.configureAgent('kit', 'sol', 'high');
+    expect(result).toMatchObject({ next: { model: 'sol', effort: 'high' }, active: { model: 'fake' } });
+    expect(original.messages.filter(m => m.method === 'turn/start')).toHaveLength(1);
+    expect(original.messages.some(m => m.method === 'turn/interrupt')).toBe(false);
+    h.fm.setAgent('kit', { paused: true });
+    await backend.onAgentAction('kit', 'pause');
+    await until(() => !inflight().kit);
+    const resumed = fake();
+    h.fm.setAgent('kit', { paused: false });
+    await backend.onAgentAction('kit', 'resume');
+    await until(() => resumed.messages.some(m => m.method === 'turn/start'));
+    expect(resumed.messages.find(m => m.method === 'turn/start')?.params).toMatchObject({ model: 'sol', effort: 'high' });
+  });
+
   it.each(['thread/resume', 'turn/start', 'exit', 'stdout'] as const)('blocks failed worker work after %s and releases inflight state', async (failure) => {
     fake();
     const { h, backend } = worker();
@@ -184,7 +206,7 @@ describe('Codex backend lifecycle through fake stdio', () => {
     await backend.onAgentAction('kit', 'resume');
     await until(() => resumed.messages.some((m) => m.method === 'turn/start'), 1500);
     expect(resumed.messages.find((m) => m.method === 'thread/resume')?.params?.threadId).toBe('thread-kit');
-    expect(inflight().kit).toMatchObject({ kind: 'followup', taskId: 't1', sessionKey: 'kit:t1' });
+    expect(inflight().kit).toMatchObject({ kind: 'followup', taskId: 't1', sessionKey: 'codex:kit:t1' });
     expect(h.fm.tasks.require('t1')).toMatchObject({ assignee: 'kit', status: 'doing', worktree: 'kit-t1' });
   });
 
@@ -242,7 +264,7 @@ describe('Codex backend lifecycle through fake stdio', () => {
     await until(() => child.messages.some((m) => m.method === 'turn/start'));
     expect(child.messages.find((m) => m.method === 'thread/resume')?.params?.threadId).toBe('saved-thread');
     expect(child.messages.find((m) => m.method === 'turn/start')?.params?.input).toEqual([expect.objectContaining({ text: expect.stringContaining('orchestrator restarted') })]);
-    expect(inflight().kit).toMatchObject({ kind: 'work', taskId: 't1', sessionKey: 'kit:t1' });
+    expect(inflight().kit).toMatchObject({ kind: 'work', taskId: 't1', sessionKey: 'codex:kit:t1' });
     expect(fixture.h.fm.tasks.require('t1')).toMatchObject({ assignee: 'kit', status: 'doing', worktree: 'kit-t1' });
     child.send({ id: 'finish-task', method: 'item/tool/call', params: { threadId: 'saved-thread', tool: 'update_task', arguments: { task_id: 't1', status: 'blocked', blocked_reason: 'fixture complete' } } });
     await until(() => child.messages.some((m) => m.id === 'finish-task'));

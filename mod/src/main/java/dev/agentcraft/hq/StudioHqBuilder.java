@@ -237,7 +237,7 @@ public final class StudioHqBuilder implements HqBuilder {
 					for (int z = z0; z <= z1; z++) {
 						for (int x = x0; x <= x1; x++) {
 							BlockState state = chunk.getBlockState(pos.set(x, y, z));
-							if (!state.isAir() && !Plan.natural(state)) {
+							if (Plan.protectedOnFirstBuild(state)) {
 								return true;
 							}
 						}

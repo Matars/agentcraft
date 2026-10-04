@@ -226,6 +226,29 @@ Exact option labels: merge decisions use `Merge`, `Request changes`, `Reject`; p
 
 ## Foreman -> Mod
 
+### `snapshot.part`
+
+Negotiated bounded snapshot transport. Concatenate bodies in index order; apply only the complete JSON snapshot. Limit 64 MiB, 512 parts; reset on a new transfer.
+
+| field | type | required | notes |
+| --- | --- | --- | --- |
+| `id` | string | no | client correlation id; the Foreman answers with `ack` {re: id} |
+| `transferId` | string | yes |  |
+| `index` | integer | yes |  |
+| `total` | integer | yes |  |
+| `body` | string | yes |  |
+
+```json
+{
+  "v": 1,
+  "type": "snapshot.part",
+  "transferId": "example",
+  "index": 0,
+  "total": 1,
+  "body": "{\"type\":\"snapshot\"}"
+}
+```
+
 ### `snapshot`
 
 Full state. Sent in reply to every `hello`; the mod rebuilds its view from it.
@@ -867,6 +890,7 @@ First message after connecting. The Foreman replies with `snapshot`, then stream
 | --- | --- | --- | --- |
 | `id` | string | no | client correlation id; the Foreman answers with `ack` {re: id} |
 | `modVersion` | string | yes |  |
+| `snapshotParts` | boolean | no | Accept ordered snapshot.part messages and apply the reconstructed snapshot atomically. |
 | `protocol` | 1 | yes |  |
 | `client` | string | no | "mod" \| "cli" \| ... (informational) |
 
@@ -882,7 +906,7 @@ First message after connecting. The Foreman replies with `snapshot`, then stream
 
 ### `goal.submit`
 
-New goal for the lead (console: plain text).
+New goal for the lead (Minecraft console: `/goal <text>`).
 
 | field | type | required | notes |
 | --- | --- | --- | --- |
@@ -902,7 +926,7 @@ New goal for the lead (console: plain text).
 
 ### `user.message`
 
-Message an agent (console: `@name text`) or everyone.
+Message an agent (Minecraft console: plain text to Marlow, `@name text` to an agent) or everyone (`@all text`).
 
 | field | type | required | notes |
 | --- | --- | --- | --- |
@@ -985,6 +1009,97 @@ Pause/resume/stop an agent, or spawn (activate) an off-shift worker.
 }
 ```
 
+### `harness.detect`
+
+Detect installed standalone harnesses, login availability and model catalogs; return current team selections.
+
+| field | type | required | notes |
+| --- | --- | --- | --- |
+| `id` | string | no | client correlation id; the Foreman answers with `ack` {re: id} |
+| `refresh` | boolean | no |  |
+
+```json
+{
+  "v": 1,
+  "type": "harness.detect",
+  "id": "c-harnesses",
+  "refresh": true
+}
+```
+
+### `team.configure`
+
+Atomically configure lead, worker and reviewer harness/model/reasoning choices for future turns. Preserve per-agent overrides unless resetAgentOverrides is true.
+
+| field | type | required | notes |
+| --- | --- | --- | --- |
+| `id` | string | no | client correlation id; the Foreman answers with `ack` {re: id} |
+| `roles` | { lead: { provider: `codex` \| `claude`, model?: string, effort?: string }, worker: { provider: `codex` \| `claude`, model?: string, effort?: string }, reviewer: { provider: `codex` \| `claude`, model?: string, effort?: string } } | yes |  |
+| `resetAgentOverrides` | boolean | no |  |
+
+```json
+{
+  "v": 1,
+  "type": "team.configure",
+  "id": "c-team",
+  "roles": {
+    "lead": {
+      "provider": "codex"
+    },
+    "worker": {
+      "provider": "codex"
+    },
+    "reviewer": {
+      "provider": "claude",
+      "model": "sonnet",
+      "effort": "high"
+    }
+  }
+}
+```
+
+### `agent.models`
+
+Read available models, supported reasoning levels and current settings for an agent.
+
+| field | type | required | notes |
+| --- | --- | --- | --- |
+| `id` | string | no | client correlation id; the Foreman answers with `ack` {re: id} |
+| `agentId` | string | yes |  |
+| `provider` | `codex` \| `claude` | no |  |
+
+```json
+{
+  "v": 1,
+  "type": "agent.models",
+  "id": "c-models",
+  "agentId": "marlow"
+}
+```
+
+### `agent.configure`
+
+Set an agent model and reasoning level for its next turn; omit both to restore role defaults.
+
+| field | type | required | notes |
+| --- | --- | --- | --- |
+| `id` | string | no | client correlation id; the Foreman answers with `ack` {re: id} |
+| `agentId` | string | yes |  |
+| `provider` | `codex` \| `claude` | no |  |
+| `model` | string | no |  |
+| `effort` | string | no |  |
+
+```json
+{
+  "v": 1,
+  "type": "agent.configure",
+  "id": "c-configure",
+  "agentId": "marlow",
+  "model": "gpt-6-astra",
+  "effort": "medium"
+}
+```
+
 ### `diff.request`
 
 Ask for the structured diff of a worktree. Answered with `diff` (same requestId).
@@ -1029,7 +1144,8 @@ Register a local git repo (console: `/repo add <path>`).
 
 | console input | message |
 | --- | --- |
-| plain text | `goal.submit {text}` |
+| plain text | `user.message {to:"marlow", text}` |
+| `/goal <text>` | `goal.submit {text, repoId?}` (choose a repository when several are registered) |
 | `@name text` | `user.message {to:"all", text:"@name text"}` (the Foreman routes it) or `{to:"name", text}` |
 | `/answer [dN] <n\|label> [text]` | `decision.answer {decisionId, option, text?}` |
 | `/repo add <path>` | `repo.add {path}` |

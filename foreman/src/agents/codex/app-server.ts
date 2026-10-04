@@ -1,3 +1,4 @@
+import { codexCommand } from './launch.js';
 import { spawn, execFile, type ChildProcess } from 'node:child_process';
 
 export interface CodexServerRequest {
@@ -75,7 +76,8 @@ export class CodexAppServer {
     const inertCommand = process.platform === 'win32' ? (this.options.env.COMSPEC ?? 'cmd.exe') : '/usr/bin/true';
     const inertArgs = process.platform === 'win32' ? ['/c', 'exit', '0'] : [];
     const mcpOverride = `mcp_servers={${this.disabledMcpServers.map((name) => `${JSON.stringify(name)}={command=${JSON.stringify(inertCommand)},args=${JSON.stringify(inertArgs)},enabled=false}`).join(',')}}`;
-    const child = spawn(this.options.binaryPath, ['app-server', '--listen', 'stdio://', '-c', 'features.apps=false', '-c', mcpOverride], {
+    const launch = codexCommand(this.options.binaryPath, ['app-server', '--listen', 'stdio://', '-c', 'features.apps=false', '-c', mcpOverride]);
+    const child = spawn(launch.command, launch.args, {
       cwd: this.options.cwd,
       env: this.options.env,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -115,7 +117,8 @@ export class CodexAppServer {
     // A slow CLI must not freeze every agent and connected game client. Bound output and
     // kill on timeout/close; failure still prevents starting with inherited tool servers.
     const stdout = await new Promise<string>((resolve, reject) => {
-      execFile(this.options.binaryPath, ['mcp', 'list', '--json'], {
+      const launch = codexCommand(this.options.binaryPath, ['mcp', 'list', '--json']);
+      execFile(launch.command, launch.args, {
         cwd: this.options.cwd,
         env: this.options.env,
         encoding: 'utf8',

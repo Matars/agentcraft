@@ -87,14 +87,14 @@ export function reviewPrompt(
   task: Task,
   diffText: string,
   stats: { files: number; additions: number; deletions: number },
-  ci: { pass: boolean; command: string; output: string } | undefined,
+  ci: { pass: boolean | null; command: string; output: string } | undefined,
 ): string {
   // who worked on it (a task handed over after a stop/reassign has several worktrees)
   const workers = [...new Set(fm.repos.list().flatMap((r) => r.worktrees.filter((w) => w.taskId === task.id)).map((w) => fm.nameOf(w.agentId)))];
   const handedOver = workers.length > 1 ? `\nWorked on by ${workers.join(', then ')} (handed over; the branch continues the earlier work).` : '';
   return `Review request: ${task.id} "${task.title}" by ${fm.nameOf(task.assignee ?? '?')}.${handedOver}
 ${taskHistory(fm, task)}Worker summary: ${task.summary ?? '(none)'}
-Tests (${ci?.command ?? 'none'}): ${ci ? (ci.pass ? 'PASS' : 'FAIL') : 'not run'}
+Tests (${ci?.command ?? 'none'}): ${ci && ci.pass !== null ? (ci.pass ? 'PASS' : 'FAIL') : 'not run'}
 ${ci && !ci.pass ? `\nTest output (tail):\n${ci.output}\n` : ''}
 Diff vs base (${stats.files} files, +${stats.additions} -${stats.deletions}):
 ${diffText}

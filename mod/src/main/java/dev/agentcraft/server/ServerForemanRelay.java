@@ -61,6 +61,7 @@ public final class ServerForemanRelay {
 	private static final long SILENCE_MS = 45_000;
 	private static final long HANDSHAKE_MS = 15_000;
 	private static final long PING_MS = 15_000;
+	private final dev.agentcraft.network.SnapshotTransfer snapshots = new dev.agentcraft.network.SnapshotTransfer();
 	private static final int MAX_JSON_CHARS = 4 * 1024 * 1024;
 	private static final int MAX_JSON_BYTES = 4 * 1024 * 1024;
 	private static final int MAX_PENDING = 512;
@@ -290,6 +291,7 @@ public final class ServerForemanRelay {
 	}
 
 	private synchronized void stop() {
+		snapshots.clear();
 		running = false;
 		WebSocket socket = ws;
 		ws = null;
@@ -352,6 +354,7 @@ public final class ServerForemanRelay {
 		hello.addProperty("modVersion", FabricLoader.getInstance().getModContainer(AgentCraft.MOD_ID)
 			.map(container -> container.getMetadata().getVersion().getFriendlyString()).orElse("0"));
 		hello.addProperty("protocol", Protocol.VERSION);
+		hello.addProperty("snapshotParts", true);
 		hello.addProperty("client", "mod-server-relay");
 		return hello;
 	}
@@ -373,6 +376,7 @@ public final class ServerForemanRelay {
 			return;
 		}
 		generation++;
+		snapshots.clear();
 		WebSocket socket = ws;
 		ws = null;
 		if (socket != null) {
@@ -742,6 +746,10 @@ public final class ServerForemanRelay {
             json = projected.toString();
         }
         int bytes = json.getBytes(StandardCharsets.UTF_8).length;
+		if (bytes > MAX_JSON_BYTES && JsonParser.parseString(json).getAsJsonObject().get("type").getAsString().equals("snapshot")) {
+			for (String part : dev.agentcraft.network.SnapshotTransfer.split(json)) sendData(player, part);
+			return;
+		}
 		if (json.length() > MAX_JSON_CHARS || bytes > MAX_JSON_BYTES || !ServerPlayNetworking.canSend(player, Data.TYPE)) {
 			if (json.length() > MAX_JSON_CHARS || bytes > MAX_JSON_BYTES) {
 				AgentCraft.LOGGER.warn("Dropped oversized Foreman frame ({} characters, {} UTF-8 bytes)", json.length(), bytes);
@@ -818,12 +826,19 @@ public final class ServerForemanRelay {
 					lastInbound = System.currentTimeMillis();
 					server.execute(() -> {
 						if (running && generationAtOpen == generation) {
-							parseAndHandle(frame);
+							try {
+								parseAndHandle(frame);
+							} finally {
+								// Demand follows consumption: at most one complete frame waits
+								// for the server thread, even under sustained agent output.
+								if (running && generationAtOpen == generation) webSocket.request(1);
+							}
 						}
 					});
 				}
+			} else {
+				webSocket.request(1); // Continue the bounded, incomplete frame.
 			}
-			webSocket.request(1);
 			return null;
 		}
 
@@ -872,7 +887,8 @@ public final class ServerForemanRelay {
 			return;
 		}
 		try {
-			handle(object);
+			JsonObject complete = snapshots.accept(object);
+			if (complete != null) handle(complete);
 		} catch (RuntimeException e) {
 			AgentCraft.LOGGER.warn("Could not route Foreman frame '{}'", string(object, "type"), e);
 		}

@@ -1,0 +1,71 @@
+# Set up a Codex, Claude or mixed team
+
+Install and authenticate the standalone CLIs you want to use on the **Foreman host**. Minecraft
+clients do not need access to CLI credentials. Model catalogs depend on the installed CLI and
+account; the names in screenshots are examples, not a fixed list of supported models.
+
+## First setup
+
+1. Start Foreman with the initial backend (`--backend codex` or `--backend claude`).
+2. Join as the configured coding owner. An unconfigured team prompts for setup after discovery.
+3. Choose **All Codex**, **All Claude**, or **Mixed team**.
+4. Use **Choose…** for each lead, worker and reviewer role to select its provider, model and
+   supported reasoning level.
+5. Review the three roles, then **Save team**. Presets and role-picker choices are drafts until save.
+
+A team save validates all roles before changing them. Existing individual overrides are preserved
+unless their reset is explicitly selected. Running turns retain their provider/model; subsequent
+turns use the saved choices. If startup could not authenticate a provider, saving a valid replacement
+team rechecks execution readiness and resumes queued work when available.
+
+One shared runner schedules every role, runs CI, and opens permission and merge decisions for the
+owner. Choosing a Claude reviewer does not start another scheduler or authorize automatic merges.
+Sessions are stored separately for Codex and Claude.
+
+## Change one agent
+
+Open the agent card and choose **Model**, or press **O**. The selector shows current-turn and
+next-turn settings separately.
+
+- **Codex [C]** and **Claude [L]** preview that provider's available models without saving.
+- Select a model and reasoning level, then **Apply** (or Enter). Arrow keys navigate these choices.
+- **Defaults [D]** clears individual overrides and returns the agent to its role defaults.
+- **Team [T]** reopens team setup. **Retry [R]** reloads model discovery after a failure.
+- Escape returns to the previous screen.
+
+Unavailable providers show an error. A failed preview clears the old provider's model rows so they
+cannot be applied as if they belonged to the new provider. In role pickers, Tab navigation retains
+focus when controls refresh; Tab from Reasoning reaches the confirmation button.
+
+## Verified behavior
+
+On 2026-10-04, the integrated source passed 625 Foreman tests, TypeScript typechecking and generated
+protocol consistency, plus the Java build and 48 JVM tests. Relevant tests cover atomic role saves,
+provider-isolated sessions, migration, preserved overrides, explicit reset, unavailable-provider
+recovery, retry, and setup discovery across reconnects. Old connection replies, owner-denied
+requests, already-configured teams and simulation connections do not open an unwanted setup screen.
+
+In an isolated Minecraft studio, discovery detected Codex 0.160.0 and Claude Code 2.1.289. Native
+keyboard input selected and saved Codex Astra/medium for lead, GPT-6.1/high for workers, and Claude
+Sonnet/high for review. Readback and a Foreman restart preserved these selections and setup completion.
+The survival studio's preferences were not changed.
+
+A separate disposable real-CLI fixture ran a Codex worker that edited and committed one file,
+passed its project tests, and received a Claude review leading to an open owner merge decision.
+The base branch remained unchanged. This verifies one real mixed-provider workflow, not every
+provider/model/account combination.
+
+The actual client also opened both per-agent catalogs, kept the eighth slash-completion selection
+visible, and received a reply to plain chat while readback still showed zero goals and tasks.
+The original survival client was then restored at its saved position with its existing shaders.
+
+## Screenshots and limits
+
+The [annotated gallery](../contribution-gallery.html) contains real framebuffer captures. Annotation
+markers are a separate HTML layer, and each image links to its untouched original. Captures show
+rendered state; the checks described above establish the input and persistence behavior.
+
+Mouse-handler and widget tests pass, but native automation could not reliably move Minecraft's
+internal SDL pointer. These are not physical mouse-click verification; see [the mouse regression
+notes](agent-card-mouse.md). Final integrated release qualification and the remaining multiplayer
+and failure-path captures are separate gates before publication.

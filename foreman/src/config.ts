@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { readJson } from './util/fsx.js';
 import type { BackendName } from './protocol.js';
 import { defaultUserName } from './user.js';
+import type { ExecutionConfig } from './agents/execution-types.js';
 import type { EffortLevel } from '@anthropic-ai/claude-agent-sdk';
 
 export const FOREMAN_VERSION = '0.1.0';
@@ -68,6 +69,8 @@ export interface SimConfig {
 }
 
 export interface Config {
+  /** Optional embedding defaults; owner edits are persisted by the in-game setup flow. */
+  execution?: ExecutionConfig;
   backend: BackendName;
   /** the person the team works for (prompts, feed, UI); default: the OS user name */
   userName: string;

@@ -82,7 +82,7 @@ class ServerForemanRelayTest {
 
 	@Test void guestCannotPromptAnswerPermissionsOrMergeWhileOwnerCan() throws Exception {
 		try (var owners = mockStatic(OwnerAccess.class); var networking = mockStatic(ServerPlayNetworking.class)) {
-			for (String type : List.of("user.message", "decision.answer", "goal.submit", "repo.open", "diff.request")) {
+			for (String type : List.of("user.message", "decision.answer", "goal.submit", "repo.open", "diff.request", "harness.detect", "team.configure", "agent.models", "agent.configure")) {
 				accept(type);
 			}
 			verify(socket, never()).sendText(anyString(), anyBoolean());
@@ -183,4 +183,48 @@ class ServerForemanRelayTest {
 		queued.removeFirst().run();
 		assertNull(get("latestSnapshot"));
 	}
+	@Test void demandWaitsForServerConsumptionAcrossAThousandFrames() throws Exception {
+		set("running", true);
+		Class<?> type = Class.forName(ServerForemanRelay.class.getName() + "$Listener");
+		var ctor = type.getDeclaredConstructor(ServerForemanRelay.class, int.class);
+		ctor.setAccessible(true);
+		var listener = (WebSocket.Listener) ctor.newInstance(relay, 0);
+		for (int i = 0; i < 1000; i++) {
+			clearInvocations(socket);
+			listener.onText(socket, "{\"type\":", false);
+			verify(socket).request(1);
+			clearInvocations(socket);
+			listener.onText(socket, "\"ack\"}", true);
+			assertEquals(1, queued.size());
+			verify(socket, never()).request(anyLong());
+			queued.removeFirst().run();
+			verify(socket).request(1);
+			assertTrue(queued.isEmpty());
+		}
+	}
+
+	@Test void segmentedSnapshotsFilterPrivateMemoryBeforeTransport() throws Exception {
+		try (var owners = mockStatic(OwnerAccess.class); var networking = mockStatic(ServerPlayNetworking.class)) {
+			var packets = new ArrayList<dev.agentcraft.network.ForemanPayloads.Data>();
+			networking.when(() -> ServerPlayNetworking.canSend(player, dev.agentcraft.network.ForemanPayloads.Data.TYPE)).thenReturn(true);
+			networking.when(() -> ServerPlayNetworking.send(eq(player), any(dev.agentcraft.network.ForemanPayloads.Data.class)))
+				.thenAnswer(call -> { packets.add(call.getArgument(1)); return null; });
+			JsonObject snapshot = com.google.gson.JsonParser.parseString("{\"type\":\"snapshot\",\"memory\":[{\"scope\":\"shared\",\"body\":\"visible\"},{\"scope\":\"private\",\"body\":\"private-marker\"}]}").getAsJsonObject();
+			snapshot.addProperty("padding", "x".repeat(4 * 1024 * 1024 + 100));
+			for (boolean owner : List.of(false, true)) {
+				owners.when(() -> OwnerAccess.isOwner(player)).thenReturn(owner); packets.clear();
+				call("sendData", new Class<?>[]{ServerPlayer.class, String.class}, player, snapshot.toString());
+				assertFalse(packets.isEmpty());
+				Map<String, StringBuilder> frames = new LinkedHashMap<>();
+				for (var packet : packets) frames.computeIfAbsent(packet.transferId(), key -> new StringBuilder()).append(packet.jsonFragment());
+				assertTrue(frames.size() > 1);
+				var transfer = new dev.agentcraft.network.SnapshotTransfer(); JsonObject complete = null;
+				for (var frame : frames.values()) complete = transfer.accept(com.google.gson.JsonParser.parseString(frame.toString()).getAsJsonObject());
+				assertNotNull(complete); assertEquals(owner ? 2 : 1, complete.getAsJsonArray("memory").size());
+				assertEquals(owner, complete.toString().contains("private-marker"));
+				assertEquals(snapshot.get("padding"), complete.get("padding"));
+			}
+		}
+	}
+
 }

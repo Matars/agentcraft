@@ -579,7 +579,7 @@ public class ConsoleScreen extends Screen {
 				hint = ConsoleCommands.describe(intent, s);
 			}
 		}
-		String placeholder = "Type a goal, @agent to message, or /help";
+		String placeholder = "Talk to Marlow, /goal to start work, or @agent to message";
 		return new TextFieldView.Style(">", UiStyle.BRASS, placeholder, ghostText(), hint, hintColor, 6);
 	}
 
@@ -659,7 +659,7 @@ public class ConsoleScreen extends Screen {
 		int ly = listY + 4;
 		g.enableScissor(listX + 2, listY + 2, listX + listW - 2, listY + listH - 2);
 		if (rs.isEmpty()) {
-			String msg = s == null || !s.hasData() ? "Waiting for the Foreman…" : "Nothing yet. Type a goal below and press Enter.";
+			String msg = s == null || !s.hasData() ? "Waiting for the Foreman…" : "Talk to Marlow below, or use /goal to start work.";
 			g.text(font, msg, listX + 8, ly + 2, UiBits.muted(), false);
 		}
 		int textX0 = listX + 6;

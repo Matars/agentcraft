@@ -14,6 +14,8 @@ export interface CodexTurnStats {
 
 type JsonRecord = Record<string, unknown>;
 const COMMAND_OUTPUT_TAIL_CHARS = 16_384;
+const RESPONSE_LOG_CHARS = 1200;
+const MAX_PENDING_RESPONSES = 16;
 
 function appendOutputTail(previous: string, delta: string): string {
   const combined = previous + delta;
@@ -34,6 +36,7 @@ function text(value: unknown): string {
 export class CodexStreamMapper {
   readonly stats: CodexTurnStats = { isError: false, errors: [] };
   private commandOutput = new Map<string, string>();
+  private agentMessages = new Map<string, string>();
 
   constructor(private readonly fm: Foreman, private readonly agentId: string, private readonly cwd: string, private readonly role: 'lead' | 'worker') {}
 
@@ -41,7 +44,15 @@ export class CodexStreamMapper {
     switch (method) {
       case 'item/agentMessage/delta': {
         const delta = text(params.delta);
-        if (delta) this.fm.agentLog(this.agentId, 'text', delta);
+        if (!delta) break;
+        const id = text(params.itemId);
+        if (!this.agentMessages.has(id) && this.agentMessages.size >= MAX_PENDING_RESPONSES) {
+          this.flushMessage(this.agentMessages.keys().next().value!);
+        }
+        // The authoritative completed item supplies the whole response. Retain only a bounded
+        // prefix for interrupted turns; token fragments are not useful as individual log rows.
+        const previous = this.agentMessages.get(id) ?? '';
+        this.agentMessages.set(id, (previous + delta.slice(0, RESPONSE_LOG_CHARS + 1)).slice(0, RESPONSE_LOG_CHARS + 1));
         break;
       }
       case 'item/commandExecution/outputDelta':
@@ -75,6 +86,12 @@ export class CodexStreamMapper {
     }
   }
 
+  private flushMessage(id: string, completedText?: string): void {
+    const body = (completedText || this.agentMessages.get(id) || '').trim();
+    if (body) this.fm.agentLog(this.agentId, 'text', truncate(body, RESPONSE_LOG_CHARS));
+    this.agentMessages.delete(id);
+  }
+
   private started(item: JsonRecord): void {
     const kind = text(item.type);
     if (kind === 'commandExecution') {
@@ -95,6 +112,7 @@ export class CodexStreamMapper {
     const kind = text(item.type);
     if (kind === 'agentMessage') {
       const body = text(item.text);
+      this.flushMessage(text(item.id), body);
       this.stats.resultText = body || this.stats.resultText;
       return;
     }
@@ -114,6 +132,7 @@ export class CodexStreamMapper {
 
   private completedTurn(turn: JsonRecord): void {
     this.commandOutput.clear();
+    for (const id of this.agentMessages.keys()) this.flushMessage(id);
     const status = text(turn.status);
     this.stats.subtype = status || 'unknown';
     this.stats.isError = status !== 'completed';

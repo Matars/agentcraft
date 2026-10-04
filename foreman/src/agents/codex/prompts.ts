@@ -67,11 +67,11 @@ export function reviewPrompt(
   task: Task,
   diffText: string,
   stats: { files: number; additions: number; deletions: number },
-  ci: { pass: boolean; command: string; output: string } | undefined,
+  ci: { pass: boolean | null; command: string; output: string } | undefined,
 ): string {
   const workers = [...new Set(fm.repos.list().flatMap((repo) => repo.worktrees.filter((worktree) => worktree.taskId === task.id).map((worktree) => fm.nameOf(worktree.agentId))))];
   const handoff = workers.length > 1 ? `\nWorked on by ${workers.join(', then ')}.` : '';
-  return `Review task ${task.id} "${task.title}" by ${fm.nameOf(task.assignee ?? '?')}.${handoff}\n${taskHistory(fm, task)}Worker summary: ${task.summary ?? '(none)'}\nTests (${ci?.command ?? 'none'}): ${ci ? (ci.pass ? 'PASS' : 'FAIL') : 'not run'}${ci && !ci.pass ? `\n\nTest output:\n${ci.output}\n` : ''}\nDiff vs base (${stats.files} files, +${stats.additions} -${stats.deletions}):\n${diffText}\n\nDecide now: call agentcraft.request_merge with task_id "${task.id}" and a concise owner-facing summary if it meets the task, or agentcraft.update_task with status "doing" and the concrete changes needed. Then end your turn.`;
+  return `Review task ${task.id} "${task.title}" by ${fm.nameOf(task.assignee ?? '?')}.${handoff}\n${taskHistory(fm, task)}Worker summary: ${task.summary ?? '(none)'}\nTests (${ci?.command ?? 'none'}): ${ci && ci.pass !== null ? (ci.pass ? 'PASS' : 'FAIL') : 'not run'}${ci && !ci.pass ? `\n\nTest output:\n${ci.output}\n` : ''}\nDiff vs base (${stats.files} files, +${stats.additions} -${stats.deletions}):\n${diffText}\n\nDecide now: call agentcraft.request_merge with task_id "${task.id}" and a concise owner-facing summary if it meets the task, or agentcraft.update_task with status "doing" and the concrete changes needed. Then end your turn.`;
 }
 
 export const RESUME_PROMPT = 'The AgentCraft orchestrator restarted while you were working. Re-check the current task, its worktree, and the team task board, then continue from your saved Codex session.';

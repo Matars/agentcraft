@@ -44,3 +44,34 @@ describe('Codex streamed command output', () => {
     expect(retained().size).toBe(0);
   });
 });
+
+describe('Codex agent message logs', () => {
+  it('renders a completed message as one readable entry rather than one row per token', () => {
+    const {mapper,agentLog}=fixture();
+    for(const delta of ['The ', 'change ', 'is ', 'ready', '.']) mapper.handle('item/agentMessage/delta',{itemId:'reply',delta});
+    mapper.handle('item/completed',{item:{id:'reply',type:'agentMessage',text:'The change is ready.'}});
+    expect(agentLog.mock.calls.filter(call=>call[1]==='text').map(call=>call[2])).toEqual(['The change is ready.']);
+    expect(mapper.stats.resultText).toBe('The change is ready.');
+  });
+  it('keeps an interrupted partial response readable and does not duplicate completed messages', () => {
+    const {mapper,agentLog}=fixture();
+    mapper.handle('item/agentMessage/delta',{itemId:'a',delta:'First response.'});
+    mapper.handle('item/completed',{item:{id:'a',type:'agentMessage',text:'First response.'}});
+    mapper.handle('item/agentMessage/delta',{itemId:'b',delta:'Still '});
+    mapper.handle('item/agentMessage/delta',{itemId:'b',delta:'checking'});
+    mapper.handle('turn/completed',{turn:{status:'interrupted'}});
+    expect(agentLog.mock.calls.filter(call=>call[1]==='text').map(call=>call[2])).toEqual(['First response.','Still checking']);
+  });
+});
+
+it('bounds pending response count and text while retaining final authoritative content',()=>{
+  const {mapper,agentLog}=fixture();
+  for(let i=0;i<100;i++)mapper.handle('item/agentMessage/delta',{itemId:String(i),delta:'x'.repeat(50_000)});
+  const pending=(mapper as unknown as {agentMessages:Map<string,string>}).agentMessages;
+  expect(pending.size).toBeLessThanOrEqual(16);
+  expect([...pending.values()].every(value=>value.length<=1201)).toBe(true);
+  mapper.handle('item/completed',{item:{id:'99',type:'agentMessage',text:'Authoritative final response.'}});
+  expect(agentLog.mock.lastCall?.[2]).toBe('Authoritative final response.');
+  mapper.handle('turn/completed',{turn:{status:'completed'}});
+  expect(pending.size).toBe(0);
+});

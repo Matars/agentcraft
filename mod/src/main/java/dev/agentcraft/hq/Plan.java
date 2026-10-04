@@ -411,6 +411,12 @@ final class Plan {
 	}
 
 	/** Terrain, plants and fluids: replacing them is not "replacing something the player built". */
+	/** Leaves may belong to a planted tree or extend into the site from outside it. */
+	static boolean protectedOnFirstBuild(BlockState state) {
+		return !state.isAir() && (!Plan.natural(state)
+			|| state.getBlock() instanceof net.minecraft.world.level.block.LeavesBlock);
+	}
+
 	static boolean natural(BlockState s) {
 		return s.is(Blocks.GRASS_BLOCK) || s.is(Blocks.DIRT) || s.is(Blocks.STONE) || s.is(Blocks.SHORT_GRASS) || s.is(Blocks.TALL_GRASS)
 			|| s.is(Blocks.WATER) || s.is(Blocks.DIRT_PATH) || s.getBlock() instanceof net.minecraft.world.level.block.VegetationBlock
