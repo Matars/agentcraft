@@ -106,7 +106,7 @@
   <header>
     <h1>AgentCraft contribution evidence</h1>
     <p>
-      Eleven real Minecraft captures from the isolated integration studio and
+      Thirteen real Minecraft captures from the isolated integration studio and
       the existing survival world. Numbered overlays identify controls and
       visible changes; click an image to inspect the untouched original.
     </p>
@@ -133,6 +133,8 @@
         href="img/contribution/setup-detected.png"
         aria-label="Open original screenshot"
         ><img
+          width="1920"
+          height="1080"
           src="img/contribution/setup-detected.png"
           alt="CLI and model discovery"
           loading="lazy" /></a
@@ -167,6 +169,8 @@
         href="img/contribution/setup-all-claude.png"
         aria-label="Open original screenshot"
         ><img
+          width="1920"
+          height="1080"
           src="img/contribution/setup-all-claude.png"
           alt="One harness for every role"
           loading="lazy" /></a
@@ -198,6 +202,8 @@
         href="img/contribution/setup-codex-worker-high.png"
         aria-label="Open original screenshot"
         ><img
+          width="1920"
+          height="1080"
           src="img/contribution/setup-codex-worker-high.png"
           alt="Codex model and reasoning"
           loading="lazy" /></a
@@ -229,6 +235,8 @@
         href="img/contribution/setup-claude-reviewer-high.png"
         aria-label="Open original screenshot"
         ><img
+          width="1920"
+          height="1080"
           src="img/contribution/setup-claude-reviewer-high.png"
           alt="Claude model and reasoning"
           loading="lazy" /></a
@@ -262,6 +270,8 @@
         href="img/contribution/setup-mixed-saved.png"
         aria-label="Open original screenshot"
         ><img
+          width="1920"
+          height="1080"
           src="img/contribution/setup-mixed-saved.png"
           alt="Mixed team saved in Minecraft"
           loading="lazy" /></a
@@ -292,13 +302,16 @@
     <h2>Per-agent model settings</h2>
     <p>
       The individual model selector displays current-turn state and next-turn
-      settings separately. This earlier capture predates the keyboard shortcut labels; the next section shows the updated controls.
+      settings separately. This earlier capture predates the keyboard shortcut
+      labels; the next section shows the updated controls.
     </p>
     <figure>
       <a
         href="img/contribution/agent-model-astra-medium.png"
         aria-label="Open original screenshot"
         ><img
+          width="1920"
+          height="1080"
           src="img/contribution/agent-model-astra-medium.png"
           alt="Per-agent model settings"
           loading="lazy" /></a
@@ -334,6 +347,8 @@
     <figure>
       <a href="img/contribution/agent-model-codex-shortcuts.png"
         ><img
+          width="1920"
+          height="1080"
           src="img/contribution/agent-model-codex-shortcuts.png"
           alt="Per-agent model controls"
           loading="lazy" /></a
@@ -369,6 +384,8 @@
     <figure>
       <a href="img/contribution/agent-model-claude-shortcuts.png"
         ><img
+          width="1920"
+          height="1080"
           src="img/contribution/agent-model-claude-shortcuts.png"
           alt="Claude preview without changing the agent"
           loading="lazy" /></a
@@ -404,6 +421,8 @@
     <figure>
       <a href="img/contribution/slash-menu-scrolled.png"
         ><img
+          width="1920"
+          height="1080"
           src="img/contribution/slash-menu-scrolled.png"
           alt="Slash completion follows the selection"
           loading="lazy" /></a
@@ -434,6 +453,8 @@
     <figure>
       <a href="img/contribution/console-plain-chat.png"
         ><img
+          width="1920"
+          height="1080"
           src="img/contribution/console-plain-chat.png"
           alt="Conversation without an accidental goal"
           loading="lazy" /></a
@@ -465,6 +486,8 @@
     <figure>
       <a href="img/contribution/survival-restored-clean-shader.png"
         ><img
+          width="3024"
+          height="1964"
           src="img/contribution/survival-restored-clean-shader.png"
           alt="Notch clearance and shader compatibility"
           loading="lazy" /></a
@@ -485,8 +508,61 @@
       <li>Rendered world and NPC geometry</li>
     </ol>
   </section>
+  <section id="vanilla-guest-release">
+    <h2>A guest joins without client mods</h2>
+    <p>
+      A plain Minecraft 26.3 client joined the loopback integration server and
+      rendered the studio using vanilla block equivalents. The client manifest
+      has no mod loader. This capture uses an offline test account and does not
+      establish a second authenticated player session.
+    </p>
+    <figure>
+      <a href="img/contribution/vanilla-guest-release.png"
+        ><img
+          width="1920"
+          height="1080"
+          src="img/contribution/vanilla-guest-release.png"
+          alt="A guest joins without client mods"
+          loading="lazy" /></a
+      ><span
+        class="marker"
+        style="left: 47%; top: 26%"
+        title="Studio blocks render as vanilla equivalents"
+        >1</span
+      >
+    </figure>
+    <ol>
+      <li>Studio blocks render as vanilla equivalents</li>
+    </ol>
+  </section>
+  <section id="vanilla-guest-owner-denial">
+    <h2>Guests cannot submit coding prompts</h2>
+    <p>
+      The vanilla guest tried /agentcraft ask and received the owner-only
+      rejection. Foreman readback remained at zero goals and zero tasks. Normal
+      Minecraft chat remains available.
+    </p>
+    <figure>
+      <a href="img/contribution/vanilla-guest-owner-denial.png"
+        ><img
+          width="1920"
+          height="1080"
+          src="img/contribution/vanilla-guest-owner-denial.png"
+          alt="Guests cannot submit coding prompts"
+          loading="lazy" /></a
+      ><span
+        class="marker"
+        style="left: 37%; top: 87%"
+        title="Owner-only prompt rejection"
+        >1</span
+      >
+    </figure>
+    <ol>
+      <li>Owner-only prompt rejection</li>
+    </ol>
+  </section>
   <footer>
-    Captured 2026-10-04. Eleven original framebuffer captures are included;
+    Captured 2026-10-04. Thirteen original framebuffer captures are included;
     annotation markers are a separate HTML layer. No generated game imagery or
     modified screenshot pixels. Keyboard and state-readback checks are distinct
     from mouse-handler regression tests. The remaining multiplayer and release

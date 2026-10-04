@@ -35,7 +35,7 @@ pack = {
 }
 instance = '''[General]
 InstanceType=OneSix
-name=AgentCraft - Codex Multiplayer
+name=AgentCraft - Multiplayer Studio
 iconKey=default
 AutomaticJava=true
 OverrideJavaLocation=false
@@ -45,7 +45,7 @@ OverrideMemory=true
 MinMemAlloc=512
 MaxMemAlloc=4096
 '''
-instructions = '''AgentCraft - Codex Multiplayer
+instructions = '''AgentCraft - Multiplayer Studio
 
 Minecraft Java 26.3 / Fabric Loader 0.19.5 / Java 25.
 
@@ -59,9 +59,12 @@ singleplayer auto-world with JVM argument -Dagentcraft.autoworld=0.
 
 Only the host/coding player needs this modded client. Guests can join with plain Java Minecraft 26.3.
 The server needs Polymer to project studio blocks/items into vanilla equivalents.
-No Foreman URL, Codex login, OpenAI API key, or server world files are
-included in this client package. The host runs Codex and controls agent
-work, repo access, permissions and merge decisions.
+No Foreman URL, provider credentials, API keys, or server world files are
+included in this client package. The host runs Foreman with Codex, Claude,
+or a mixed team and controls repository access, permissions and merge decisions.
+Choose providers, models and reasoning in the coding owner's in-game Team setup.
+Claude uses API authentication by default; the host can explicitly enable a
+personal Claude subscription login with --use-claude-login.
 '''
 archive_path = args.out / 'AgentCraft-Codex-Multiplayer.zip'
 with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as archive:
