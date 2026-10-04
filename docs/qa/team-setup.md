@@ -44,7 +44,7 @@ focus when controls refresh; Tab from Reasoning reaches the confirmation button.
 
 ## Verified behavior
 
-On 2026-10-04, the integrated source passed 631 Foreman tests, TypeScript typechecking and generated
+On 2026-10-04, the integrated source passed 632 Foreman tests, TypeScript typechecking and generated
 protocol consistency, plus the Java build and 50 JVM tests. Relevant tests cover atomic role saves,
 provider-isolated sessions, migration, preserved overrides, explicit reset, unavailable-provider
 recovery, retry, and setup discovery across reconnects. Old connection replies, owner-denied
@@ -74,3 +74,11 @@ Mouse-handler and widget tests pass, but native automation could not reliably mo
 internal SDL pointer. These are not physical mouse-click verification; see [the mouse regression
 notes](agent-card-mouse.md). Final integrated release qualification and the remaining multiplayer
 and failure-path captures are separate gates before publication.
+
+
+The disposable real-CLI review was subsequently approved through Foreman: only `greeting.mjs`
+merged into the fixture base branch, its tests passed, and the task became done. A separate
+isolated process-interruption check verified that the failed agent card still opened Model (O)
+and Message (M). Sending a new message received `RECOVERED` with authentication healthy and no
+goals or tasks created. A transient model-discovery failure is now reported as a CLI failure,
+without incorrectly directing the owner to sign in again.

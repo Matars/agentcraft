@@ -257,7 +257,7 @@ export function createHarnessCatalog(config: Config) {
         available: false,
         version,
         models: [],
-        reason: `Could not query ${provider === "codex" ? "Codex" : "Claude Code"}. Check its CLI login and retry detection.`,
+        reason: `Could not query ${provider === "codex" ? "Codex" : "Claude Code"}. Check that its CLI starts correctly, then retry detection.`,
       };
     }
   }

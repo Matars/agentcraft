@@ -42,7 +42,7 @@ See [team setup](qa/team-setup.md), [console commands](console.md), the
 
 ## Validation
 
-The local source checkpoint on 2026-10-04 passed 631 Foreman tests, TypeScript typechecking and
+The local source checkpoint on 2026-10-04 passed 632 Foreman tests, TypeScript typechecking and
 protocol-document consistency, plus the Java build and 50 JVM tests. Tool tests passed 18/18 and
 the Python packaging regression passed. Later source changes require their own checks.
 
@@ -71,3 +71,11 @@ Windows launcher behavior has fixture coverage, not a physical Windows qualifica
 multiplayer, failure/recovery and final-build release captures remain to be integrated. Final live
 qualification and the clean upstream source export are still pending; this document does not claim
 that the complete contribution has been published or deployed.
+
+
+The disposable real-CLI review was subsequently approved through Foreman: only `greeting.mjs`
+merged into the fixture base branch, its tests passed, and the task became done. A separate
+isolated process-interruption check verified that the failed agent card still opened Model (O)
+and Message (M). Sending a new message received `RECOVERED` with authentication healthy and no
+goals or tasks created. A transient model-discovery failure is now reported as a CLI failure,
+without incorrectly directing the owner to sign in again.

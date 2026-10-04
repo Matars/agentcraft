@@ -112,6 +112,18 @@ describe('one shared orchestration authority', () => {
     expect(f.calls[0]!.selection.provider).toBe('codex');
   });
 
+  it('does not convert a transient catalog failure into a sign-in failure', async () => {
+    const f = fixture();
+    await f.h.fm.start(f.backend);
+    f.capabilities.mockImplementation(async provider => ({available:false,models:catalog[provider],reason:'Could not query Codex. Check that its CLI starts correctly, then retry detection.'}));
+    f.backend.onUserMessage('marlow','First attempt');
+    await until(() => f.h.fm.agent('marlow')?.state === 'error',1000);
+    expect(f.h.fm.status.auth).toBe('ok');
+    f.capabilities.mockImplementation(async provider => ({available:true,models:catalog[provider]}));
+    f.backend.onUserMessage('marlow','Try again');
+    await until(() => f.calls.length === 1,1000);
+  });
+
   it('does not classify a token-limit error as lost authentication', async () => {
     let turns = 0;
     const f = fixture(undefined,async () => {if (++turns === 1) throw new Error('Maximum token limit exceeded');});

@@ -167,6 +167,7 @@ it("does not expose account details or raw errors when Claude discovery fails", 
   const result = await createHarnessCatalog(config)("claude");
   expect(result.available).toBe(false);
   expect(JSON.stringify(result)).not.toContain("secret");
+  expect(result.reason).not.toMatch(/auth|login|credential|sign.in/i);
   expect(fake.claudeClose).toHaveBeenCalledOnce();
 });
 it("requires actual authentication even if Claude returns a model list", async () => {
