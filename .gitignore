@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 build/
 .gradle/
 run/
@@ -17,3 +17,4 @@ foreman/scratch/
 mod/.gradle/
 mod/build/
 .claude/
+

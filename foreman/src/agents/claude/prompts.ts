@@ -1,3 +1,5 @@
+import { boardSummary, planText } from '../prompt-state.js';
+export { boardSummary } from '../prompt-state.js';
 // System-prompt appendices and job prompts for the claude backend.
 import type { Foreman } from '../../foreman.js';
 import type { Goal, Task, Worktree } from '../../protocol.js';
@@ -39,19 +41,6 @@ How to work
 - Stay on your branch in this worktree: do not check out other branches, edit .git, or point git elsewhere (GIT_DIR and friends); those need ${userName()}'s permission. Your commits are made as AgentCraft ${fm.nameOf(agentId)} and are never signed (no -S).
 - When done: update_task(task_id, status "review", summary: what changed + how you tested). If you cannot finish: update_task(status "blocked", blocked_reason). Then end your turn.
 `.trim();
-}
-
-export function boardSummary(fm: Foreman, goalId?: string): string {
-  const tasks = fm.tasks.list().filter((t) => !goalId || t.goalId === goalId);
-  if (!tasks.length) return '(no tasks yet)';
-  return tasks
-    .map((t) => `- ${t.id} [${t.status}] ${t.title}${t.assignee ? ` (${fm.nameOf(t.assignee)})` : ''}${t.deps.length ? ` deps: ${t.deps.join(', ')}` : ''}`)
-    .join('\n');
-}
-
-function planText(fm: Foreman): string {
-  const plan = fm.memory.list().filter((m) => m.scope === 'shared' && /^plan/i.test(m.title)).pop();
-  return plan ? truncate(plan.body, 3000) : '(no plan in memory)';
 }
 
 export function planPrompt(fm: Foreman, goal: Goal, repoPath: string, branch: string): string {

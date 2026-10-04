@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ClaudeBackend } from './agents/claude/index.js';
+import { CodexBackend } from './agents/codex/index.js';
 import { SimBackend } from './agents/sim/index.js';
 import { DEFAULT_SIM_GOAL } from './agents/sim/scenario.js';
 import { FOREMAN_VERSION, HELP, loadConfig, type Config } from './config.js';
@@ -61,7 +62,12 @@ export async function main(argv: string[]): Promise<void> {
   }
 
   const foreman = new Foreman({ config: cfg, logger: log });
-  const backend = cfg.backend === 'sim' ? new SimBackend(foreman, cfg.sim) : new ClaudeBackend(foreman, cfg.claude);
+  const backend =
+    cfg.backend === 'sim'
+      ? new SimBackend(foreman, cfg.sim)
+      : cfg.backend === 'claude'
+        ? new ClaudeBackend(foreman, cfg.claude)
+        : new CodexBackend(foreman, cfg.codex);
   const server = new ForemanServer(foreman, { host: cfg.host, port: cfg.port, allowBrowserOrigins: cfg.allowBrowserOrigins, validateOutbound: cfg.debug, log });
 
   try {

@@ -69,7 +69,7 @@ export function parseTestOutput(text: string): { failures: string[]; summary?: s
   if (!failures.length) for (const m of text.matchAll(/^\s*(?:✖|×|FAIL)\s+(.+)$/gm)) failures.push(m[1]!.trim());
   const nums: string[] = [];
   for (const k of ['tests', 'pass', 'fail']) {
-    const m = new RegExp(`^# ${k} (\\d+)$`, 'm').exec(text);
+    const m = new RegExp(`^[#ℹ] ${k} (\\d+)$`, 'm').exec(text);
     if (m) nums.push(`${k} ${m[1]}`);
   }
   return { failures: [...new Set(failures)].slice(0, 20), ...(nums.length ? { summary: nums.join(', ') } : {}) };

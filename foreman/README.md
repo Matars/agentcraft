@@ -1,6 +1,6 @@
 # AgentCraft Foreman
 
-The Foreman is the brain of AgentCraft: a Node 22 + TypeScript service that runs a team of Claude
+The Foreman is the brain of AgentCraft: a Node 22+ and TypeScript service that runs a team of Codex or Claude
 agents (one lead, up to five workers) on a real git repo and streams everything to the Minecraft
 mod over a WebSocket. The game is only a view. The Foreman owns all state, keeps working while
 Minecraft is closed, and survives restarts.
@@ -20,6 +20,7 @@ Minecraft is closed, and survives restarts.
      |- Notifier      src/notifier.ts    desktop notification + console bell when you are needed
      |- Store         src/store.ts       atomic JSON state + JSONL logs under AGENTCRAFT_HOME
      `- Backend       claude: src/agents/claude/  (Claude Agent SDK sessions)
+                      codex:  src/agents/codex/   (local Codex app-server sessions)
                       sim:    src/agents/sim/     (deterministic scripted team, real git)
 ```
 
@@ -28,6 +29,10 @@ Minecraft is closed, and survives restarts.
 ```sh
 cd foreman
 npm install
+
+# Codex: install the CLI and sign in with `codex login` first
+codex login status
+npm run start -- --backend codex --repo /path/to/authorized/repo --profile codex
 
 # real agents: needs ANTHROPIC_API_KEY (or CLAUDE_CODE_USE_BEDROCK / _VERTEX / _FOUNDRY)
 npm run start -- --backend claude --repo C:\path\to\your\repo
@@ -71,7 +76,7 @@ most ~100 ms of state, and interrupted agent turns resume on the next start.
 
 | flag / env | default | |
 | --- | --- | --- |
-| `--backend sim\|claude` / `AGENTCRAFT_BACKEND` | `claude` | |
+| `--backend sim\|claude\|codex` / `AGENTCRAFT_BACKEND` | `claude` | |
 | `--port` / `AGENTCRAFT_PORT` | `7878` | WebSocket port (127.0.0.1 only) |
 | `--home` / `AGENTCRAFT_HOME` | `~/.agentcraft` | state root |
 | `--user-name` / `AGENTCRAFT_USER_NAME` / config `userName` | OS user name | how the agents address you; sent to the mod in `foreman.status` |
@@ -98,6 +103,28 @@ While running, `<home>/<profile>/foreman.json` records `{pid, port, host, backen
 so launch scripts can find it; `<home>/foreman.json` holds the same for the first live Foreman (when
 it exits, another live profile takes its place). A second Foreman on a profile that is already
 running is refused (two would both write its `state.json`).
+
+## Codex backend
+
+Codex runs as a local `codex app-server` child process. Its existing host login stays
+on the host; the Minecraft client needs neither credentials nor a direct Foreman URL.
+Use `--codex-path /absolute/path/to/codex` (or `CODEX_CLI_PATH`) if it is not on PATH.
+`--model`, `--lead-model`, `--worker-model`, `--effort` and `--lead-effort` select Codex
+settings; leaving them unset preserves app-server defaults. The Opus/Sonnet defaults
+and turn/budget caps in the table above describe Claude; do not assume Claude billing
+or caps apply to Codex. Shared team, CI, worktree and merge settings still apply.
+
+The adapter supplies AgentCraft dynamic tools, translates approvals into owner
+decisions, persists thread IDs, and streams turn activity. Disconnect/cancellation
+fixtures cover interrupted sessions, pending decisions and late events; they do not
+establish successful authenticated CLI operation on every installed Codex version.
+See [qualification and remaining runtime checks](../docs/contribution-handoff.md).
+
+Dedicated multiplayer uses the server relay over Minecraft's authenticated connection;
+the Foreman still listens only on `127.0.0.1`. Configure the owner's UUID on the server
+and leave the offline override disabled. Use a separate home/profile for a second
+server and a distinct Foreman port; do not reuse a running Claude profile to switch
+backends. Stop that profile first, or select a new profile.
 
 ## How the claude backend works
 

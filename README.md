@@ -2,7 +2,9 @@
 
 # AgentCraft
 
-**A team of Claude agents doing real work on your code, inside a Minecraft studio you can walk around in.**
+**A team of coding agents doing real work on your code, inside a Minecraft studio you can walk around in.
+
+This fork adds a Codex app-server backend and authenticated dedicated-server multiplayer. The upstream Claude and single-player workflows remain available.**
 
 *Powered by Claude*
 
@@ -10,7 +12,7 @@
 [![Minecraft 26.3](https://img.shields.io/badge/Minecraft-26.3-8fa98b)](https://www.minecraft.net)
 [![Fabric](https://img.shields.io/badge/mod%20loader-Fabric-d97757)](https://fabricmc.net)
 [![Claude Agent SDK](https://img.shields.io/badge/agents-Claude%20Agent%20SDK-2fa3a0)](https://code.claude.com/docs/en/agent-sdk/overview)
-[![Tests](https://img.shields.io/badge/tests-482%20passing-3b2a20)](foreman/test)
+[![Tests](https://img.shields.io/badge/tests-local%20qualification-3b2a20)](docs/contribution-handoff.md)
 
 <img src="docs/img/readme/hero.jpg" alt="The AgentCraft HQ at golden hour" width="100%">
 
@@ -168,7 +170,11 @@ AgentCraft is built to point at code you care about.
 **You need:** Windows 10 or 11, or macOS, Java 25, Node 22+, git, and a copy of
 Minecraft: Java Edition.
 
-**For the real agents** you need Claude API access, either of these:
+**For Codex agents**, install the Codex CLI and sign in locally with `codex login`.
+Check it with `codex login status`, then use `--backend codex` (macOS) or
+`-Backend codex` (Windows). See [Codex and multiplayer](#codex-and-dedicated-server-multiplayer).
+
+**For Claude agents** you need Claude API access, either of these:
 
 - `ANTHROPIC_API_KEY`: create a key at [console.anthropic.com](https://console.anthropic.com), then
   `setx ANTHROPIC_API_KEY sk-ant-...` and open a new terminal.
@@ -310,7 +316,7 @@ the workers resolved, took 2 to 10 minutes each and about $6 in total. The sim b
 
 | Path | What lives there |
 |---|---|
-| [`foreman/`](foreman) | The orchestrator: agents, task graph, memory, decisions, git safety, 482 tests |
+| [`foreman/`](foreman) | The orchestrator: agents, task graph, memory, decisions, git safety and tests |
 | [`mod/`](mod) | The Fabric mod: HQ builder, agents, displays, screens, HUD |
 | [`assets-src/`](assets-src) | Scripts that generate every skin, block texture and UI sprite |
 | [`tools/`](tools) | Launcher, stop script, DevBridge CLI, screenshot and QA runner |
@@ -321,7 +327,7 @@ the workers resolved, took 2 to 10 minutes each and about $6 in total. The sim b
 ## Development
 
 ```powershell
-cd foreman; npm test                       # 482 tests
+cd foreman; npm run check                 # typecheck, tests, protocol docs
 cd mod; .\gradlew.bat build                # the mod
 node tools/qa.mjs --home .agentcraft-home  # capture the 10 shot QA gallery
 ```
@@ -340,9 +346,8 @@ AgentCraft is young and has been used by one person on one machine. Today it is:
 
 - **Windows and macOS development launchers.** Both platforms have desktop notifications when
   the agents need a decision. macOS has been tested on Apple Silicon; Intel Macs are not yet tested.
-- **Singleplayer,** one studio per world, on **Minecraft 26.3**.
-- **Run through the development client** (`gradlew runClient`). A regular mod release for normal
-  launchers is planned.
+- **Singleplayer and dedicated multiplayer** on **Minecraft 26.3**, with one shared studio and an owner-authorized Foreman.
+- **Development client or normal Fabric launchers.** This fork includes a standalone mod jar and a Prism import package.
 
 Issues and ideas are welcome.
 
@@ -359,3 +364,43 @@ not affiliated with Mojang, Microsoft or Anthropic.
 <br>
 <sub>Built with Claude.</sub>
 </div>
+
+
+## Codex and dedicated-server multiplayer
+
+Use the signed-in local Codex CLI with `--backend codex`; no OpenAI API
+key is copied into Minecraft. The Foreman runs Codex sessions on the host,
+streams their activity into the studio, and keeps the existing worktree,
+permission, review, and owner-approved merge workflow.
+
+```sh
+node tools/mac.mjs launch --backend codex --repo /path/to/authorized/repo --no-game
+```
+
+Install AgentCraft, Fabric API, and Polymer 0.18.2+26.3 on the dedicated
+server and on the coding player's Fabric client. Guests can join with plain
+Minecraft Java 26.3. Polymer projects custom studio blocks and items into
+vanilla equivalents for guests; studio clients retain the real custom models
+and displays. Each studio client reaches Foreman through Minecraft's
+authenticated connection. The Foreman WebSocket stays on host loopback.
+Set the server's `agentcraft.owner.uuid` property to the owner's Minecraft
+UUID; ordinary clients do not need the owner's Codex login or a Foreman URL.
+Only the configured owner directs coding work and approves permissions or
+merges. Other players can see the shared studio and submit owner-visible
+requests. Dedicated offline-mode ownership is disabled by default; the
+`agentcraft.owner.allowOffline=true` override is for isolated local tests.
+
+On a survival world, `/agentcraft hq studio at X Y Z` builds at the chosen
+location without changing the world's spawn or gamerules. `/agentcraft visit`
+goes to the published studio. Native `AgentCraft HQ` worlds keep the original
+creative studio setup. Type `@codex your message` in ordinary Minecraft chat,
+use `/agentcraft ask your message`, or open the in-game console.
+
+`tools/package_multiplayer.py` creates a Prism client ZIP and standalone jar.
+`tools/install_server.py` is a macOS helper for a specific existing managed Fabric
+server `control.py`, not a general server installer. It checks mod IDs, backs up
+replaced files, and writes host-specific Codex startup configuration without
+restarting the server. Local server state, world files and credentials are
+excluded from the client ZIP. See [packaging and setup](tools/README.md#multiplayer-packaging-and-managed-server-setup)
+for prerequisites and rollback, and the [contribution handoff](docs/contribution-handoff.md)
+for the complete checkpoint inventory, draft PR and qualification limits.
